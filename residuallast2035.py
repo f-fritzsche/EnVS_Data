@@ -23,17 +23,28 @@ erzeugung_df['Date'] = pd.to_datetime(erzeugung_df['Date'])
 last_df.set_index('Date', inplace=True)
 erzeugung_df.set_index('Date', inplace=True)
 
-print(last_df.head())
-print(erzeugung_df.head())
 
 # Calculate the Residuallast
 residuallast_df = last_df['Load'] - erzeugung_df['Generation']
+
+# Export the Residuallast to a new CSV file
+residuallast_df.to_csv("residuallast_2035.csv", header=['Residuallast'], index=True)
 
 daily_residuallast = residuallast_df.resample('D').sum()
 
 daily_residuallast = daily_residuallast / 1000000 # convert to TWh
 
-print(daily_residuallast.head())
+# Calculate the "above zero" and "below zero" parts of the residual load for better visualization
+daily_residuallast_above_zero = daily_residuallast.copy()
+daily_residuallast_below_zero = daily_residuallast.copy()
+daily_residuallast_above_zero[daily_residuallast_above_zero < 0] = 0
+daily_residuallast_below_zero[daily_residuallast_below_zero > 0] = 0
+
+# Sum the positive and negative parts for the entire year to check if they balance out
+total_residuallast_above_zero = daily_residuallast_above_zero.sum()
+total_residuallast_below_zero = daily_residuallast_below_zero.sum()
+print(f"Total Residual Load above zero: {total_residuallast_above_zero} TWh")
+print(f"Total Residual Load below zero: {total_residuallast_below_zero} TWh")
 
 # Plotting
 fig, ax = plt.subplots(figsize=(15, 6))
@@ -54,6 +65,5 @@ ax.plot(daily_residuallast.index, daily_residuallast, color='red', linewidth=1.8
 ax.set_xlabel("Datum")
 ax.set_ylabel("Energie [TWh]")
 ax.set_title("Tägliche Residualenergie im Jahr 2035")
-ax.legend()
 plt.tight_layout()
 plt.show()

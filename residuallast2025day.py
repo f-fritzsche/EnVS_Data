@@ -56,10 +56,17 @@ erzeugung_df["Skalierte Erneuerbare Erzeugung [MWh]"] = erzeugung_df["Erneuerbar
 erzeugung_df.set_index('Datum', inplace=True)
 verbrauch_df.set_index('Datum', inplace=True)
 
+residuallast_df = verbrauch_df[LAST] - erzeugung_df["Skalierte Erneuerbare Erzeugung [MWh]"]
+# Resample to hourly data (if not already hourly)
+residuallast_df = residuallast_df.resample('h').sum()
+# Export the Residuallast to a new CSV file
+residuallast_df.to_csv("residuallast_2025.csv", header=['Residuallast'], index=True)
+exit()
+
 daily_verbrauch = verbrauch_df[LAST].resample('D').sum()
 daily_erzeugung = erzeugung_df["Skalierte Erneuerbare Erzeugung [MWh]"].resample('D').sum()
 
-# Convert MWh to GWh for better visualization
+# Convert MWh to TWh for better visualization
 daily_verbrauch = daily_verbrauch / 1000000
 daily_erzeugung = daily_erzeugung / 1000000
 
