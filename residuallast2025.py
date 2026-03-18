@@ -23,8 +23,8 @@ mpl.rcParams.update({
 
 
 # CSV Einlesen
-erzeugung_df = pd.read_csv(ERZEUGUNG_FILE, decimal=',', na_values=['-'])
-verbrauch_df = pd.read_csv(VERBRAUCH_FILE, decimal=',', na_values=['-'])
+erzeugung_df = pd.read_csv(ERZEUGUNG_FILE, na_values=['-'])
+verbrauch_df = pd.read_csv(VERBRAUCH_FILE, na_values=['-'])
 
 # Convert columns to numeric, coercing errors
 for col in ERNEUERBARE + KONVENTIONELL:
