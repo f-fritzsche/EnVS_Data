@@ -14,11 +14,11 @@ mpl.rcParams.update({
 WS = "WS26"
 
 # Importiere die Daten
-PV_I_FILE = "DE00_CapacityFactors_PV_industrial_rooftop_2035.csv"
-PV_R_FILE = "DE00_CapacityFactors_PV_residential_rooftop_2035.csv"
-PC_U_FILE = "DE00_CapacityFactors_PV_utility_fixed_2035.csv"
-WIND_ON_FILE = "DE00_CapacityFactors_Wind_Onshore_2035.csv"
-WIND_OFF_FILE = "DE00_CapacityFactors_Wind_Offshore_2035.csv"
+PV_I_FILE = "input/DE00_CapacityFactors_PV_industrial_rooftop_2035.csv"
+PV_R_FILE = "input/DE00_CapacityFactors_PV_residential_rooftop_2035.csv"
+PC_U_FILE = "input/DE00_CapacityFactors_PV_utility_fixed_2035.csv"
+WIND_ON_FILE = "input/DE00_CapacityFactors_Wind_Onshore_2035.csv"
+WIND_OFF_FILE = "input/DE00_CapacityFactors_Wind_Offshore_2035.csv"
 
 # Installed Capacity in MW
 HYDRO = 3934
@@ -104,5 +104,5 @@ export_df = pd.DataFrame({
     "Date": generation_df.index,
     "Generation": generation_df.sum(axis=1)
 })
-export_df.to_csv("generation_2035_hourly.csv", index=False)
+export_df.to_csv("output/generation_2035_hourly.csv", index=False)
 

@@ -11,8 +11,8 @@ mpl.rcParams.update({
     'xtick.minor.visible': False, 'ytick.minor.visible': True,
 })
 
-LAST_FILE = "average_load_2035.csv"
-ERZEUGUNG_FILE = "generation_2035_hourly.csv"
+LAST_FILE = "output/average_load_2035.csv"
+ERZEUGUNG_FILE = "output/generation_2035_hourly.csv"
 
 last_df = pd.read_csv(LAST_FILE, na_values=['-'])
 erzeugung_df = pd.read_csv(ERZEUGUNG_FILE, na_values=['-'])
@@ -27,24 +27,26 @@ erzeugung_df.set_index('Date', inplace=True)
 # Calculate the Residuallast
 residuallast_df = last_df['Load'] - erzeugung_df['Generation']
 
+# Convert to TWh at the hourly level first
+hourly_residuallast = residuallast_df / 1000000 
+
+# Split into positive (Deficit) and negative (Surplus) at the HOURLY level
+hourly_above_zero = hourly_residuallast.copy()
+hourly_below_zero = hourly_residuallast.copy()
+
+hourly_above_zero[hourly_above_zero < 0] = 0
+hourly_below_zero[hourly_below_zero > 0] = 0
+
+# Now sum them up for the print statements
+print(f"Total Hourly Deficit (Needs discharging): {hourly_above_zero.sum():.2f} TWh")
+print(f"Total Hourly Surplus (Available to charge): {hourly_below_zero.sum():.2f} TWh")
+
 # Export the Residuallast to a new CSV file
-residuallast_df.to_csv("residuallast_2035.csv", header=['Residuallast'], index=True)
+residuallast_df.to_csv("output/residuallast_2035.csv", header=['Residuallast'], index=True)
 
 daily_residuallast = residuallast_df.resample('D').sum()
 
 daily_residuallast = daily_residuallast / 1000000 # convert to TWh
-
-# Calculate the "above zero" and "below zero" parts of the residual load for better visualization
-daily_residuallast_above_zero = daily_residuallast.copy()
-daily_residuallast_below_zero = daily_residuallast.copy()
-daily_residuallast_above_zero[daily_residuallast_above_zero < 0] = 0
-daily_residuallast_below_zero[daily_residuallast_below_zero > 0] = 0
-
-# Sum the positive and negative parts for the entire year to check if they balance out
-total_residuallast_above_zero = daily_residuallast_above_zero.sum()
-total_residuallast_below_zero = daily_residuallast_below_zero.sum()
-print(f"Total Residual Load above zero: {total_residuallast_above_zero} TWh")
-print(f"Total Residual Load below zero: {total_residuallast_below_zero} TWh")
 
 # Plotting
 fig, ax = plt.subplots(figsize=(15, 6))

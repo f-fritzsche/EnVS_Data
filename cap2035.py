@@ -1,6 +1,6 @@
 import pandas as pd
 
-FILE = "GenerationCapacities.csv"
+FILE = "input/GenerationCapacities.csv"
 
 df = pd.read_csv(FILE)
 

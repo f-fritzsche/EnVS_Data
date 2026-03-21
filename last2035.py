@@ -14,7 +14,7 @@ mpl.rcParams.update({
 
 # Importiere die Daten
 
-FILE = "DE00_Demand_total_2035_National Trends.csv"
+FILE = "input/DE00_Demand_total_2035_National Trends.csv"
 
 dataframe = pd.read_csv(FILE)
 
@@ -103,4 +103,4 @@ print(f"Year total Average: {year_total_avg} TWh")
 # Export the hourly average column to a new CSV file with the columns "Date" and "Load"
 export_df = new_dataframe[["Average"]].reset_index()
 export_df.rename(columns={"Average": "Load"}, inplace=True)
-export_df.to_csv("average_load_2035.csv", index=False)
+export_df.to_csv("output/average_load_2035.csv", index=False)

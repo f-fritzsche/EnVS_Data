@@ -13,11 +13,14 @@ mpl.rcParams.update({
 
 PUFFER_GWH = 0 #10960
 
+WIRKUNGSGRAD_EINSPEICHERUNG = 0.8
+WIRKUNGSGRAD_AUSSPEICHERUNG = 0.55
+
 
 # ==========================================
 # 1. Daten einlesen & Vorbereiten
 # ==========================================
-df = pd.read_csv('residuallast_2025.csv') 
+df = pd.read_csv('residuallast_2035.csv') 
 residuallast = df['Residuallast'].values
 
 residuallast_gw = residuallast / 1000  # von MW auf GW
@@ -27,7 +30,15 @@ residuallast_gw = residuallast / 1000  # von MW auf GW
 # Definition der Leistungsflüsse aus Sicht des Speichers:
 # Residuallast > 0 (Defizit) -> Speicher muss entladen (negativer Wert für Speicher)
 # Residuallast < 0 (Überschuss) -> Speicher kann laden (positiver Wert für Speicher)
-speicher_fluss_gwh = -residuallast_gw 
+speicher_fluss_unbereinigt_gwh = -residuallast_gw 
+
+for i in range(len(speicher_fluss_unbereinigt_gwh)):
+    if speicher_fluss_unbereinigt_gwh[i] > 0: # Ladephase
+        speicher_fluss_unbereinigt_gwh[i] *= WIRKUNGSGRAD_EINSPEICHERUNG
+    else: # Entladephase
+        speicher_fluss_unbereinigt_gwh[i] /= WIRKUNGSGRAD_AUSSPEICHERUNG
+
+speicher_fluss_gwh =speicher_fluss_unbereinigt_gwh.copy()
 
 # ==========================================
 # 2. Lade- und Entladeleistung bestimmen
@@ -62,6 +73,17 @@ kapazitaet_twh = kapazitaet_gwh / 1000
 print(f"--- SPEICHERKAPAZITÄT ---")
 print(f"Benötigte nutzbare Speicherkapazität (aus 2-Jahres-Zyklus): {kapazitaet_twh:.2f} TWh\n")
 
+# --- DIAGNOSTIC BLOCK ---
+# Calculate the totals directly from the array that the simulation is about to use
+eff_in_twh = speicher_fluss_gwh[speicher_fluss_gwh > 0].sum() / 1000
+eff_out_twh = speicher_fluss_gwh[speicher_fluss_gwh < 0].sum() / 1000
+net_change_twh = speicher_fluss_gwh.sum() / 1000
+
+print(f"--- DIAGNOSTICS ---")
+print(f"Effective Energy IN (Python's view):  {eff_in_twh:.2f} TWh")
+print(f"Effective Energy OUT (Python's view): {eff_out_twh:.2f} TWh")
+print(f"Net Change in Storage:                {net_change_twh:.2f} TWh\n")
+
 
 # ==========================================
 # 4. Zeitreihen-Simulation (Der reale Füllstand)
@@ -72,7 +94,7 @@ print(f"Benötigte nutzbare Speicherkapazität (aus 2-Jahres-Zyklus): {kapazitae
 minimum_soc = []
 minimum_soc.append(0) # Start mit leerem Speicher, damit die Simulation nicht sofort mit einem Defizit startet, das nicht durch den Speicher ausgeglichen werden kann.
 
-for l in range(10):
+for l in range(1):
     soc_gwh = np.zeros(len(residuallast_gw))
     aktueller_soc = kapazitaet_gwh
     #sum all minimum socs and subtract from aktueller_soc to simulate the drawdown of the storage over the years
@@ -82,20 +104,24 @@ for l in range(10):
     abgeregelte_energie_gwh = 0
 
     for i, fluss in enumerate(speicher_fluss_gwh):
+
         neuer_soc = aktueller_soc + fluss
         
-        # KAPPUNG OBEN (Speicher ist voll -> Überschuss wird abgeregelt/verfällt)
-        if neuer_soc > kapazitaet_gwh:
-            abgeregelte_energie_gwh += (neuer_soc - kapazitaet_gwh)
-            aktueller_soc = kapazitaet_gwh
+        # # KAPPUNG OBEN (Speicher ist voll -> Überschuss wird abgeregelt/verfällt)
+        # if neuer_soc > kapazitaet_gwh:
+        #     abgeregelte_energie_gwh += (neuer_soc - kapazitaet_gwh)
+        #     aktueller_soc = kapazitaet_gwh
             
-        # KAPPUNG UNTEN (Speicher ist leer -> Darf nicht unter 0 fallen)
-        # (Sollte bei korrekter Drawdown-Berechnung genau 1x bei 0 ankommen, aber nie darunter)
-        elif neuer_soc < 0:
-            aktueller_soc = 0
+        # # KAPPUNG UNTEN (Speicher ist leer -> Darf nicht unter 0 fallen)
+        # # (Sollte bei korrekter Drawdown-Berechnung genau 1x bei 0 ankommen, aber nie darunter)
+        # elif neuer_soc < 0:
+        #     aktueller_soc = 0
+        #     print(f"Warnung: Speicherfüllstand ist unter 0 gefallen! Das sollte mit der Drawdown-Berechnung nicht passieren. Neuer Füllstand wurde auf 0 gesetzt.")
             
-        else:
-            aktueller_soc = neuer_soc
+        # else:
+        #     aktueller_soc = neuer_soc
+
+        aktueller_soc = neuer_soc
             
         soc_gwh[i] = aktueller_soc
 
@@ -107,7 +133,14 @@ for l in range(10):
         minimum_soc.append(soc_gwh.min())
     else: break
 
+# Neuberechnung der tatsächlichen Lade- und Entladeleistung, da durch die Simulation mit harten Grenzen die tatsächlichen Flüsse abweichen können
+tatsache_ladeleistung_gw = max(0, np.max(np.diff(soc_gwh)))
+tatsache_entladeleistung_gw = max(0, -np.min(np.diff(soc_gwh)))
 
+
+print(f"\n--- TATSÄCHLICHE LEISTUNGEN NACH SIMULATION ---")
+print(f"Tatsächliche maximale Ladeleistung:   {tatsache_ladeleistung_gw:.2f} GW")
+print(f"Tatsächliche maximale Entladeleistung: {tatsache_entladeleistung_gw:.2f} GW")
 
 # ==========================================
 # 5. Visualisierung

@@ -10,8 +10,8 @@ LAST = "Netzlast [MWh]"
 ERNEUERBARE = ["Biomasse [MWh]", "Wasserkraft [MWh]", "Wind Offshore [MWh]", "Wind Onshore [MWh]", "Photovoltaik [MWh]", "Sonstige Erneuerbare [MWh]"]
 KONVENTIONELL = ["Braunkohle [MWh]", "Steinkohle [MWh]", "Erdgas [MWh]", "Kernenergie [MWh]", "Sonstige Konventionelle [MWh]"]
 
-ERZEUGUNG_FILE = "Realisierte_Erzeugung_2025.csv"
-VERBRAUCH_FILE = "Realisierter_Stromverbrauch_2025.csv"
+ERZEUGUNG_FILE = "input/Realisierte_Erzeugung_2025.csv"
+VERBRAUCH_FILE = "input/Realisierter_Stromverbrauch_2025.csv"
 
 mpl.rcParams.update({
 'figure.dpi': 150, 'axes.grid': True, 'grid.linestyle': '--',

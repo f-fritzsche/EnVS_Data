@@ -10,8 +10,8 @@ LAST = "Netzlast [MWh]"
 ERNEUERBARE = ["Biomasse [MWh]", "Wasserkraft [MWh]", "Wind Offshore [MWh]", "Wind Onshore [MWh]", "Photovoltaik [MWh]", "Sonstige Erneuerbare [MWh]"]
 KONVENTIONELL = ["Braunkohle [MWh]", "Steinkohle [MWh]", "Erdgas [MWh]", "Kernenergie [MWh]", "Sonstige Konventionelle [MWh]"]
 
-ERZEUGUNG_FILE = "Realisierte_Erzeugung_2025.csv"
-VERBRAUCH_FILE = "Realisierter_Stromverbrauch_2025.csv"
+ERZEUGUNG_FILE = "input/Realisierte_Erzeugung_2025.csv"
+VERBRAUCH_FILE = "input/Realisierter_Stromverbrauch_2025.csv"
 
 mpl.rcParams.update({
 'figure.dpi': 150, 'axes.grid': True, 'grid.linestyle': '--',
@@ -59,9 +59,23 @@ verbrauch_df.set_index('Datum', inplace=True)
 residuallast_df = verbrauch_df[LAST] - erzeugung_df["Skalierte Erneuerbare Erzeugung [MWh]"]
 # Resample to hourly data (if not already hourly)
 residuallast_df = residuallast_df.resample('h').sum()
+
+# Convert to TWh at the hourly level first
+hourly_residuallast = residuallast_df / 1000000 
+
+# Split into positive (Deficit) and negative (Surplus) at the HOURLY level
+hourly_above_zero = hourly_residuallast.copy()
+hourly_below_zero = hourly_residuallast.copy()
+
+hourly_above_zero[hourly_above_zero < 0] = 0
+hourly_below_zero[hourly_below_zero > 0] = 0
+
+# Now sum them up for the print statements
+print(f"Total Hourly Deficit (Needs discharging): {hourly_above_zero.sum():.2f} TWh")
+print(f"Total Hourly Surplus (Available to charge): {hourly_below_zero.sum():.2f} TWh")
+
 # Export the Residuallast to a new CSV file
-residuallast_df.to_csv("residuallast_2025.csv", header=['Residuallast'], index=True)
-exit()
+residuallast_df.to_csv("output/residuallast_2025.csv", header=['Residuallast'], index=True)
 
 daily_verbrauch = verbrauch_df[LAST].resample('D').sum()
 daily_erzeugung = erzeugung_df["Skalierte Erneuerbare Erzeugung [MWh]"].resample('D').sum()
@@ -71,18 +85,6 @@ daily_verbrauch = daily_verbrauch / 1000000
 daily_erzeugung = daily_erzeugung / 1000000
 
 daily_residuallast = daily_verbrauch - daily_erzeugung
-
-# Calculate the "above zero" and "below zero" parts of the residual load for better visualization
-daily_residuallast_above_zero = daily_residuallast.copy()
-daily_residuallast_below_zero = daily_residuallast.copy()
-daily_residuallast_above_zero[daily_residuallast_above_zero < 0] = 0
-daily_residuallast_below_zero[daily_residuallast_below_zero > 0] = 0
-
-# Sum the positive and negative parts for the entire year to check if they balance out
-total_residuallast_above_zero = daily_residuallast_above_zero.sum()
-total_residuallast_below_zero = daily_residuallast_below_zero.sum()
-print(f"Total Residual Load above zero: {total_residuallast_above_zero} TWh")
-print(f"Total Residual Load below zero: {total_residuallast_below_zero} TWh")
 
 fig, ax = plt.subplots(figsize=(15, 6))
 
@@ -108,7 +110,6 @@ ax.plot(daily_residuallast.index, daily_residuallast, color='red', linewidth=1.8
 ax.set_xlabel("Datum")
 ax.set_ylabel("Energie [TWh]")
 ax.set_title("Tägliche Residualenergie im Jahr 2025")
-ax.legend()
 plt.tight_layout()
 plt.show()
 
