@@ -11,20 +11,19 @@ mpl.rcParams.update({
     'xtick.minor.visible': False, 'ytick.minor.visible': True,
 })
 
-PUFFER_GWH = 0 #10960
+PUFFER_GWH = 5000
 
-WIRKUNGSGRAD_EINSPEICHERUNG = 0.8
-WIRKUNGSGRAD_AUSSPEICHERUNG = 0.55
+WIRKUNGSGRAD_EINSPEICHERUNG = 0.8 * 0.99
+WIRKUNGSGRAD_AUSSPEICHERUNG = 0.55 * 0.99
 
 
 # ==========================================
 # 1. Daten einlesen & Vorbereiten
 # ==========================================
-df = pd.read_csv('residuallast_2035.csv') 
-residuallast = df['Residuallast'].values
 
+df = pd.read_csv('output/residuallast_2035.csv') 
+residuallast = df['Residuallast'].values
 residuallast_gw = residuallast / 1000  # von MW auf GW
-# ==========================================
 
 
 # Definition der Leistungsflüsse aus Sicht des Speichers:
@@ -43,7 +42,7 @@ speicher_fluss_gwh =speicher_fluss_unbereinigt_gwh.copy()
 # ==========================================
 # 2. Lade- und Entladeleistung bestimmen
 # ==========================================
-# Die maximale Leistung in GW entspricht dem maximalen stündlichen Energiefluss in GWh/h
+
 max_ladeleistung_gw = max(0, speicher_fluss_gwh.max())
 max_entladeleistung_gw = max(0, -speicher_fluss_gwh.min())
 
@@ -52,10 +51,9 @@ print(f"Maximale Ladeleistung (z.B. Elektrolyseur):   {max_ladeleistung_gw:.2f} 
 print(f"Maximale Entladeleistung (z.B. Gasturbine):   {max_entladeleistung_gw:.2f} GW\n")
 
 # ==========================================
-# 3. Notwendige Kapazität berechnen (Maximum Drawdown über 2 Jahre)
+# 3. Notwendige Kapazität berechnen 
 # ==========================================
-# Wir hängen die Zeitreihe des Jahres zweimal aneinander (Periodizität),
-# um saisonale Zyklen zu erfassen, die über den Jahreswechsel hinausgehen.
+
 speicher_fluss_2_jahre = np.tile(speicher_fluss_gwh, 2)
 
 # Wir simulieren die kumulierte Summe nun über 17.520 Stunden (2 Jahre)
@@ -65,7 +63,6 @@ kumulierte_energie = np.cumsum(np.insert(speicher_fluss_2_jahre, 0, 0))
 bisheriges_maximum = np.maximum.accumulate(kumulierte_energie)
 
 # Der Drawdown ist der Abfall vom Höchststand.
-# Durch die 2 Jahre wird nun auch ein Zyklus von z.B. Oktober (Jahr 1) bis März (Jahr 2) korrekt erfasst!
 drawdowns = bisheriges_maximum - kumulierte_energie
 kapazitaet_gwh = drawdowns.max()
 kapazitaet_twh = kapazitaet_gwh / 1000
@@ -73,33 +70,37 @@ kapazitaet_twh = kapazitaet_gwh / 1000
 print(f"--- SPEICHERKAPAZITÄT ---")
 print(f"Benötigte nutzbare Speicherkapazität (aus 2-Jahres-Zyklus): {kapazitaet_twh:.2f} TWh\n")
 
-# --- DIAGNOSTIC BLOCK ---
 # Calculate the totals directly from the array that the simulation is about to use
 eff_in_twh = speicher_fluss_gwh[speicher_fluss_gwh > 0].sum() / 1000
 eff_out_twh = speicher_fluss_gwh[speicher_fluss_gwh < 0].sum() / 1000
 net_change_twh = speicher_fluss_gwh.sum() / 1000
 
-print(f"--- DIAGNOSTICS ---")
-print(f"Effective Energy IN (Python's view):  {eff_in_twh:.2f} TWh")
-print(f"Effective Energy OUT (Python's view): {eff_out_twh:.2f} TWh")
-print(f"Net Change in Storage:                {net_change_twh:.2f} TWh\n")
+print(f"--- BEREINIGTE SPEICHERFLÜSSE ---")
+print(f"Effective Energy IN :       {eff_in_twh:.2f} TWh")
+print(f"Effective Energy OUT:       {eff_out_twh:.2f} TWh")
+print(f"Net Change in Storage:      {net_change_twh:.2f} TWh\n")
 
 
 # ==========================================
-# 4. Zeitreihen-Simulation (Der reale Füllstand)
+# 4. Zeitreihen-Simulation 
 # ==========================================
-# Jetzt simulieren wir den Speicher chronologisch mit harten Grenzen (0 und Max-Kapazität).
-# Für die Berechnung nehmen wir an, der Speicher startet am 1. Januar voll.
+
+
+c_puffer = 0.1*kapazitaet_gwh
+c_puffer = 0
+kapazitaet_gwh += c_puffer
 
 minimum_soc = []
-minimum_soc.append(0) # Start mit leerem Speicher, damit die Simulation nicht sofort mit einem Defizit startet, das nicht durch den Speicher ausgeglichen werden kann.
+minimum_soc.append(0) 
 
-for l in range(1):
+for l in range(10):
     soc_gwh = np.zeros(len(residuallast_gw))
     aktueller_soc = kapazitaet_gwh
-    #sum all minimum socs and subtract from aktueller_soc to simulate the drawdown of the storage over the years
     minimum_soc_sum = sum(minimum_soc)
     aktueller_soc -= minimum_soc_sum
+
+    print(f"--- SIMULATION DURCHLAUF {l+1} ---")
+    print(f"Start Füllstand:                                {aktueller_soc / 1000:.2f} TWh")
 
     abgeregelte_energie_gwh = 0
 
@@ -107,30 +108,26 @@ for l in range(1):
 
         neuer_soc = aktueller_soc + fluss
         
-        # # KAPPUNG OBEN (Speicher ist voll -> Überschuss wird abgeregelt/verfällt)
-        # if neuer_soc > kapazitaet_gwh:
-        #     abgeregelte_energie_gwh += (neuer_soc - kapazitaet_gwh)
-        #     aktueller_soc = kapazitaet_gwh
+        # KAPPUNG OBEN (Speicher ist voll -> Überschuss wird abgeregelt/verfällt)
+        if neuer_soc > kapazitaet_gwh:
+            abgeregelte_energie_gwh += (neuer_soc - kapazitaet_gwh)
+            aktueller_soc = kapazitaet_gwh
             
-        # # KAPPUNG UNTEN (Speicher ist leer -> Darf nicht unter 0 fallen)
-        # # (Sollte bei korrekter Drawdown-Berechnung genau 1x bei 0 ankommen, aber nie darunter)
-        # elif neuer_soc < 0:
-        #     aktueller_soc = 0
-        #     print(f"Warnung: Speicherfüllstand ist unter 0 gefallen! Das sollte mit der Drawdown-Berechnung nicht passieren. Neuer Füllstand wurde auf 0 gesetzt.")
+        # KAPPUNG UNTEN (Speicher ist leer -> Darf nicht unter 0 fallen)
+        elif neuer_soc < 0:
+            aktueller_soc = 0
+            print(f"WARNING")
             
-        # else:
-        #     aktueller_soc = neuer_soc
+        else:
+            aktueller_soc = neuer_soc
 
-        aktueller_soc = neuer_soc
-            
         soc_gwh[i] = aktueller_soc
 
-    print(f"--- SYSTEMBILANZ ---")
     print(f"Ungenutzte (abgeregelte) Überschussenergie:     {abgeregelte_energie_gwh / 1000:.2f} TWh")
     print(f"Speicherfüllstand am Jahresende:                {soc_gwh[-1] / 1000:.2f} TWh")
-    if soc_gwh.min() > 0:
+    if soc_gwh.min() > c_puffer:
         print(f"Minimum Füllstand:                              {soc_gwh.min()} GWh")
-        minimum_soc.append(soc_gwh.min())
+        minimum_soc.append(soc_gwh.min()-c_puffer)
     else: break
 
 # Neuberechnung der tatsächlichen Lade- und Entladeleistung, da durch die Simulation mit harten Grenzen die tatsächlichen Flüsse abweichen können
@@ -145,6 +142,7 @@ print(f"Tatsächliche maximale Entladeleistung: {tatsache_entladeleistung_gw:.2f
 # ==========================================
 # 5. Visualisierung
 # ==========================================
+
 plt.figure(figsize=(14, 7), dpi=150)
 
 # Füllstand in TWh umrechnen für den Plot

@@ -11,6 +11,9 @@ mpl.rcParams.update({
     'xtick.minor.visible': False, 'ytick.minor.visible': True,
 })
 
+WIRKUNGSGRAD_EINSPEICHERUNG = 0.8 * 0.99
+WIRKUNGSGRAD_AUSSPEICHERUNG = 0.55 * 0.99
+
 LAST_FILE = "output/average_load_2035.csv"
 ERZEUGUNG_FILE = "output/generation_2035_hourly.csv"
 

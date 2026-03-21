@@ -6,6 +6,9 @@ import matplotlib.ticker as mticker
 # Netzlast
 LAST = "Netzlast [MWh]"
 
+WIRKUNGSGRAD_EINSPEICHERUNG = 0.8 * 0.99
+WIRKUNGSGRAD_AUSSPEICHERUNG = 0.55 * 0.99
+
 # Erzeugung
 ERNEUERBARE = ["Biomasse [MWh]", "Wasserkraft [MWh]", "Wind Offshore [MWh]", "Wind Onshore [MWh]", "Photovoltaik [MWh]", "Sonstige Erneuerbare [MWh]"]
 KONVENTIONELL = ["Braunkohle [MWh]", "Steinkohle [MWh]", "Erdgas [MWh]", "Kernenergie [MWh]", "Sonstige Konventionelle [MWh]"]
@@ -27,6 +30,13 @@ verbrauch_df = pd.read_csv(VERBRAUCH_FILE, na_values=['-'])
 erzeugung_df['Datum'] = pd.to_datetime(erzeugung_df['Datum von'], format='%d.%m.%Y %H:%M')
 verbrauch_df['Datum'] = pd.to_datetime(verbrauch_df['Datum von'], format='%d.%m.%Y %H:%M')
 
+erzeugung_df.set_index('Datum', inplace=True)
+verbrauch_df.set_index('Datum', inplace=True)
+
+# Resample to hourly data (if not already hourly)
+erzeugung_df = erzeugung_df.resample('h').sum()
+verbrauch_df = verbrauch_df.resample('h').sum()
+
 for col in ERNEUERBARE + KONVENTIONELL:
     if col in erzeugung_df.columns:
         erzeugung_df[col] = pd.to_numeric(erzeugung_df[col], errors='coerce')
@@ -42,23 +52,20 @@ last_2025 = verbrauch_df[LAST].sum()
 erneuerbare_2025 = erzeugung_df["Erneuerbare Erzeugung [MWh]"].sum()
 
 konventionelle_2025 = erzeugung_df["Konventionelle Erzeugung [MWh]"].sum()
-print(f"Netzlast 2025: {last_2025} MWh")
-print(f"Erneuerbare Erzeugung 2025: {erneuerbare_2025} MWh")
-
-print(f"Konventionelle Erzeugung 2025: {konventionelle_2025} MWh")
+print(f"Netzlast 2025:                  {last_2025/1000000:.2f} TWh")
+print(f"Erneuerbare Erzeugung 2025:     {erneuerbare_2025/1000000:.2f} TWh")
+print(f"Konventionelle Erzeugung 2025:  {konventionelle_2025/1000000:.2f} TWh")
 differenz = last_2025 - (erneuerbare_2025 + konventionelle_2025)
-print(f"Residuallast 2025: {differenz} MWh")
-faktor = last_2025 / erneuerbare_2025
-print(f"Faktor: {faktor}")
+print(f"Import 2025:                    {differenz/1000000:.2f} TWh")
+gesamtwirkungsgrad = WIRKUNGSGRAD_AUSSPEICHERUNG * WIRKUNGSGRAD_EINSPEICHERUNG
+faktor = (last_2025 / erneuerbare_2025)
+print(f"Faktor:                         {faktor:.2f}")
 
 erzeugung_df["Skalierte Erneuerbare Erzeugung [MWh]"] = erzeugung_df["Erneuerbare Erzeugung [MWh]"] * faktor
 
-erzeugung_df.set_index('Datum', inplace=True)
-verbrauch_df.set_index('Datum', inplace=True)
-
 residuallast_df = verbrauch_df[LAST] - erzeugung_df["Skalierte Erneuerbare Erzeugung [MWh]"]
 # Resample to hourly data (if not already hourly)
-residuallast_df = residuallast_df.resample('h').sum()
+#residuallast_df = residuallast_df.resample('h').sum()
 
 # Convert to TWh at the hourly level first
 hourly_residuallast = residuallast_df / 1000000 
