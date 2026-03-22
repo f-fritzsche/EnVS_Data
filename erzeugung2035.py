@@ -88,7 +88,7 @@ ax.stackplot(
 ax.set_yticks(ax.get_yticks()[1:])
 ax.set_xlabel("Datum")
 ax.set_ylabel("Energie [TWh]")
-ax.set_title("Tägliche Erzeugung der Erneuerbaren Energien im Jahr 2035")
+ax.set_title("Tägliche Erzeugung der Erneuerbaren Energien im Jahr 2035 - WS26")
 # make legend with labels horizontal
 ax.legend(loc='upper left', ncol=3) 
 plt.tight_layout()

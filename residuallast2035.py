@@ -58,6 +58,8 @@ start_date = pd.to_datetime("2018-01-01")
 end_date = pd.to_datetime("2018-12-31")
 ax.set_xlim(start_date, end_date)
 
+ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, pos: f'{x:.1f}'.replace('.', ',')))
+
 # Make the y = 0 line more visible
 ax.axhline(0, color='black', linewidth=0.8, linestyle='--')
 

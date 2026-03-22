@@ -24,6 +24,8 @@ dataframe.drop(columns=["Month", "Day", "Hour"], inplace=True)
 # Reformat "date" column to datetime
 dataframe["Date"] = pd.to_datetime(dataframe["Date"])
 
+dataframe.to_csv("output/2035_load_all_ws.csv", index=False)
+
 # For every column except the first one, sum all rows and print the result
 sums = []
 
@@ -80,6 +82,8 @@ ax.set_xlim(start_date, end_date)
 monate = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
 ax.set_xticks(pd.date_range(start_date, end_date, freq='MS'))
 ax.set_xticklabels(monate)
+
+ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, pos: f'{x:.1f}'.replace('.', ',')))
 
 ax.plot(daily_max.index, daily_max, label=f"Max ({max_column})", color="red", linewidth=1.8)
 ax.plot(daily_min.index, daily_min, label=f"Min ({min_column})", color="blue", linewidth=1.8)

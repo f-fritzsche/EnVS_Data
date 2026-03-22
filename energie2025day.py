@@ -80,12 +80,12 @@ ax.set_yticks(ax.get_yticks()[1:])
 
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, pos: f'{x:.1f}'.replace('.', ',')))
 
-ax.plot(daily_verbrauch.index, daily_verbrauch, label='Netzlast', color='orange', linewidth=1.8)
+ax.plot(daily_verbrauch.index, daily_verbrauch, label='Energieverbrauch', color='orange', linewidth=1.8)
 ax.plot(daily_erzeugung.index, daily_erzeugung, label='Skalierte Erneuerbare Erzeugung', color='green', linewidth=1.8)
 
 ax.set_xlabel("Datum")
 ax.set_ylabel("Energie [TWh]")
-ax.set_title("Tägliche Netzlast und Skalierte Erneuerbare Erzeugung im Jahr 2025")
+ax.set_title("Täglicher Energieverbrauch und Skalierte Erneuerbare Erzeugung im Jahr 2025")
 ax.legend()
 plt.tight_layout()
 plt.show()
